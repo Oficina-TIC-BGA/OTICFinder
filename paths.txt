@@ -1,0 +1,8 @@
+[paths]
+path_direcciones=data/tem/direcciones_ejemplo.xlsx
+path_poligonos_bucaramanga=data/shps/bucaramanga_shps.csv
+path_poligonos_floridablanca=data/shps/floridablanca_shps.csv
+path_poligonos_giron =
+path_poligonos_piedecuesta =
+path_division_politica_AMB=data/docs/planeacion_bucaramanga_barrios_comunas.xlsx
+path_municipios_santander=data/shps/santander_shps.csv
