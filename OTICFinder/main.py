@@ -37,7 +37,7 @@ tqdm.pandas()
 #################### main.py ###################
 def main():
     start_time = time.time()
-    print('Executando script ...')
+    print('Ejecutando script ...')
     # parameter reading
     config = configparser.ConfigParser()
     config.read(sys.argv[1])
