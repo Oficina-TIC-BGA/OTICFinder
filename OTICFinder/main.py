@@ -179,7 +179,7 @@ def main():
 
     # delete temporal columns
     del df_addresses['tem']    
-    #del df_addresses['barrio_poly']
+    del df_addresses['barrio_poly']
     del df_addresses['barrio_geo']
     del df_addresses['score']
     #del df_addresses['ciudad_geo']
