@@ -24,7 +24,7 @@ def regex_identifier(dir, data, df_bucaramanga, df_floridablanca, df_giron, patt
    
             else: # cuando hay una coincidencia y muchas en las ciudades
                 # seleccionar el que mas veces se repite en las listas
-                names, counts = np.unique(ciudades+matches_found, return_counts=True)
+                names, counts = np.unique([ciudad]+matches_found, return_counts=True)
                 votos = names[np.argsort(counts)][::-1] # ordenar mayor a menor
                 if len(re.findall(re.compile(votos[0].lower().strip(), re.IGNORECASE), dir))==0: 
                     # para no repetir info
