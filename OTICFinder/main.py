@@ -22,7 +22,7 @@ import re
 import regex
 # import our own functions
 from identifiers import regex_identifier
-from address_cleaner import regex_cleaner
+from address_cleaner import regex_cleaner, regex_neighbourhood
 from helpers import get_score, get_city, get_neighbourhood, search_neighbourhood, search_nearby
 # To handle other processes
 import warnings
@@ -31,8 +31,9 @@ import unicodedata
 from functools import partial
 from collections import defaultdict
 from tqdm import tqdm, tqdm_notebook
+from codecs import decode
 # Temporal: Only for use in notebooks
-tqdm.pandas()
+tqdm.pandas()  
 
 #################### main.py ###################
 def main():
@@ -76,7 +77,9 @@ def main():
     # Execute the address cleaning function
     print('Paso 1. Limpiando direcciones ....')
     df_addresses['dir_filtradas'] = df_addresses.dir_res_.apply(lambda x: regex_cleaner(x)).values
-    
+    # Execute the step 1b for cleaning the neigbourhood 
+    operation_neighbourhood = partial(regex_neighbourhood, lookup_table.to_dict('index'))
+    df_addresses['dir_filtradas'] = df_addresses.dir_filtradas.apply(operation_neighbourhood).values
     # Execute the function to identify where the direction is from.
     print('Paso 2. Identificando de donde es cada dirección')
     # pattern to consider other cities of the country
@@ -114,15 +117,15 @@ def main():
     df_addresses['barrio_geo'] = df_addresses.respuesta.apply(get_neighbourhood) 
 
     # assign neighbourhood by polygon areas
-    print('Paso 4. Asignando barrio')
+    print('Paso 4. Asignando barrio ...')
     operation_search = partial(search_neighbourhood, data_shp.to_dict('index'))
     operation_search_near = partial(search_nearby, data_shp.to_dict('index'))
     # search by intersection and contains operations
     df_addresses['barrio_poly'] = df_addresses.coordenadas.apply(operation_search)
     # search nearby neighbourhood
     df_addresses.loc[(df_addresses.barrio_poly.isnull()) & 
-                     (df_addresses.ciudad_geo=='Bucaramanga'), 'barrio_poly'] = df_addresses.loc[(df_addresses.barrio_poly.isnull()) 
-                                                                                               & (df_addresses.ciudad_geo=='Bucaramanga'), 'coordenadas'].apply(operation_search_near)                    
+                    (df_addresses.ciudad_geo=='Bucaramanga'), 'barrio_poly'] = df_addresses.loc[(df_addresses.barrio_poly.isnull()) 
+                                                                                            & (df_addresses.ciudad_geo=='Bucaramanga'), 'coordenadas'].apply(operation_search_near)                    
     
     df_addresses.loc[(df_addresses.ciudad_geo!='Bucaramanga')
                     & (df_addresses.score>=98)
@@ -138,64 +141,77 @@ def main():
                                                                                             & (~df_addresses.barrio_geo.isnull())
                                                                                             & (df_addresses.barrio_poly.isnull()), 'barrio_geo'].str.upper() 
 
-    print('Paso 5. Asignando comuna')
+    print('Paso 5. Asignando comuna ...')
     todos_div_pol.BARRIO = todos_div_pol.BARRIO.str.upper().str.strip()
     df_addresses.barrio_poly = df_addresses.barrio_poly.str.upper().str.strip()
     df_addresses = pd.merge(df_addresses,todos_div_pol[['COMUNA', 'BARRIO']], left_on='barrio_poly', 
-                                                                              right_on='BARRIO',
-                                                                              how='left')
+                                                                            right_on='BARRIO',
+                                                                            how='left')
 
-    print('Paso 6. Creando estructura final')
+    print('Paso 6. Creando estructura final ...')
     df_addresses['NUMERO COMUNA'] = None
     df_addresses['NOMCOMUNA'] = None
     df_addresses['BARRIO_VER'] = None
-
+    df_addresses.COMUNA = df_addresses.COMUNA.str.upper()
     df_addresses[['NUMERO COMUNA','NOMCOMUNA']] =  df_addresses.COMUNA.str.split(".",expand=True)
     df_addresses['tem'] = df_addresses.NOMCOMUNA
     df_addresses.loc[df_addresses.NOMCOMUNA.isnull(),'NOMCOMUNA'] = df_addresses.loc[df_addresses.NOMCOMUNA.isnull(),'NUMERO COMUNA']
     df_addresses.loc[df_addresses.tem.isnull(),'NUMERO COMUNA'] = None
 
     df_addresses.loc[~(df_addresses.ciudad_geo.isnull())
-                   &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
-                                                     'Floridablanca']))), 'COMUNA'] = df_addresses.loc[~(df_addresses.ciudad_geo.isnull())
-                                                                                                          &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
+                &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
+                                                    'Floridablanca']))), 'COMUNA'] = df_addresses.loc[~(df_addresses.ciudad_geo.isnull())
+                                                                                                        &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
                                                                                                                                             'Floridablanca']))), 'ciudad_geo'].str.upper()
     df_addresses.loc[~(df_addresses.ciudad_geo.isnull())
-                   &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
-                                                     'Floridablanca']))), 'NOMCOMUNA'] = df_addresses.loc[~(df_addresses.ciudad_geo.isnull())
-                                                                                                          &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
+                &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
+                                                    'Floridablanca']))), 'NOMCOMUNA'] = df_addresses.loc[~(df_addresses.ciudad_geo.isnull())
+                                                                                                        &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
                                                                                                                                             'Floridablanca']))), 'ciudad_geo'].str.upper()
     df_addresses.loc[~(df_addresses.ciudad_geo.isnull())
-                   &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
-                                                     'Floridablanca']))), 'BARRIO_VER'] = df_addresses.loc[~(df_addresses.ciudad_geo.isnull())
-                                                                                                          &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
+                &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
+                                                    'Floridablanca']))), 'BARRIO_VER'] = df_addresses.loc[~(df_addresses.ciudad_geo.isnull())
+                                                                                                        &(~(df_addresses.ciudad_geo.isin(['Bucaramanga', 
                                                                                                                                             'Floridablanca']))), 'ciudad_geo'].str.upper()
     df_addresses.BARRIO_VER = df_addresses.barrio_poly.str.upper() 
     df_addresses.loc[df_addresses.COMUNA.isnull(),'COMUNA'] = 'SIN INFORMACION'
     df_addresses.loc[df_addresses.BARRIO_VER.isnull(),'BARRIO_VER'] = 'SIN INFORMACION'
-    df_addresses.loc[df_addresses.NOMCOMUNA.isnull(),'NOMCOMUNA'] = 0
+    df_addresses.loc[df_addresses.NOMCOMUNA.isnull(),'NOMCOMUNA'] = 'SIN INFORMACION'
     df_addresses.loc[df_addresses['NUMERO COMUNA'].isnull(),'NUMERO COMUNA'] = 0
+    df_addresses.loc[(~df_addresses.NOMCOMUNA.isnull()) &
+                    (df_addresses['NUMERO COMUNA']==0),'BARRIO_VER'] = df_addresses.loc[(~df_addresses.NOMCOMUNA.isnull()) &
+                                                                                        (df_addresses['NUMERO COMUNA']==0),'NOMCOMUNA']   
     df_addresses.rename(columns={'location':'dir_localizada'}, inplace=True)
-
+    # Put NO ENCONTRADO where the score is low and the neighbourhood is the CENTRO
+    df_addresses.loc[(df_addresses.score<89)&
+                    (df_addresses.NOMCOMUNA=='CENTRO'), 'BARRIO_VER'] = 'NO ENCONTRADO' 
+    df_addresses.loc[(df_addresses.score<89)&
+                    (df_addresses.NOMCOMUNA=='CENTRO'), 'COMUNA'] = 'NO ENCONTRADO'                  
+    df_addresses.loc[(df_addresses.score<89)&
+                    (df_addresses.NOMCOMUNA=='CENTRO'), 'NOMCOMUNA'] = 'NO ENCONTRADO' 
+    df_addresses.loc[(df_addresses.score<89)&
+                    (df_addresses.NOMCOMUNA=='CENTRO'), 'NUMERO COMUNA'] = 0
+    df_addresses.loc[df_addresses.BARRIO_VER==0, 'BARRIO_VER'] = 'SIN INFORMACION'                                              
     # delete temporal columns
     del df_addresses['tem']    
     del df_addresses['barrio_poly']
     del df_addresses['barrio_geo']
-    del df_addresses['score']
+    #del df_addresses['score']
     #del df_addresses['ciudad_geo']
     del df_addresses['coordenadas']
     del df_addresses['respuesta']
     del df_addresses['BARRIO'] 
     #print(df_addresses) 
-
     try:
-        df_addresses.to_excel(addresses_path.split('/')[-1].split('.')[0]+'_estructura_final.xlsx', index=False) 
+        df_addresses.to_excel(addresses_path.replace('.xlsx','_estructura_final.xlsx'), index=False) 
     except:
-        df_addresses.to_csv(addresses_path.split('/')[-1].split('.')[0]+'_estructura_final.csv', index=False, encoding='utf-8-sig') 
+        df_addresses.to_csv(addresses_path.replace('.xlsx','_estructura_final.csv'), index=False, encoding='utf-8-sig') 
     end_time = time.time()
     duration_hr = ((end_time - start_time)/60)/60
-    print('procedimiento finalizado .... Nos vemos mañana') 
+    print('procedimiento finalizado .... Nos vemos mañana')
     print("Esto tardo %.2f horas" % (duration_hr))
+    #except:
+    #    print('Programa cerrado')    
 
 if __name__ == '__main__':
     # To parallelize pandas operations
