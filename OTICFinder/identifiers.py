@@ -53,8 +53,8 @@ def regex_identifier(dir, data, df_bucaramanga, df_floridablanca, df_giron, patt
 
         else:# cuando es cero
             if len(matches_found) == 0: # No hay ninguna información
-                if dir!='nan' and dir!='sin informacion' and len(dir)>=3:
-                    dir = dir + str(', bucaramanga')
+                if dir!='nan' and dir!='sin informacion' and len(dir)>=4:
+                    dir = dir + str(', santander')
                     #print('Opción 6 {}'.format(dir))
                 else :
                     dir = np.nan    
