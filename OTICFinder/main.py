@@ -55,8 +55,11 @@ def main():
     #division_politica_piedecuesta = pd.read_excel(path_pol, sheet_name='DIVISION_POLITICA_PIEDECUESTA')
     division_politica_general = pd.read_excel(path_pol, sheet_name='CIUDADES')
     division_politica_floridablanca = pd.read_excel(path_pol, sheet_name='DIVISION_POLITICA_FLORIDABLANCA')
+    path_lookup_table = config['paths']['path_lookup_table']
+    # reading the lookup table
+    lookup_table = pd.read_excel(path_lookup_table)
     # reading shapes files
-    data_bucaramanga = pd.read_csv(path_poligonos_bucaramanga)
+    data_bucaramanga = pd.read_excel(path_poligonos_bucaramanga)
     bucaramanga_data_shp = data_bucaramanga[data_bucaramanga.CATEGORIA.isin(['BARRIO', 
                                                                              'VEREDA',
                                                                              'A. URBANO', 
