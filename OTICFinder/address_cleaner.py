@@ -6,6 +6,7 @@ def regex_cleaner(string):
     string: direccion tipo:string
     return: direccion filtrada
     """
+    string = str(string)
     # pattern 1-3: Colocar espacio entre los numero y letras, numeros y signos (#-,)
     for typ, regex in zip(['finditer', 'finditer', 'finditer'],['[a-z#-,]\d', '\d[a-z#-,]', '[a-z](,|#|-)']): 
         pattern = re.compile(regex, re.IGNORECASE)

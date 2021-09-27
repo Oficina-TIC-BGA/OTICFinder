@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 ############ import libraries #########################
+## For GUI 
+import tkinter as tk
 # To handle the arguments
 import sys
 import time
@@ -34,46 +36,80 @@ from tqdm import tqdm, tqdm_notebook
 from codecs import decode
 # Temporal: Only for use in notebooks
 tqdm.pandas()  
+from tkinter import filedialog
+import multiprocessing
 
-#################### main.py ###################
+#################### main.py #####################################################
 def main():
+    # GUI console ################################################################# 
+    def open_xlsx():
+        root.filename = filedialog.askopenfilename(initialdir='/',
+                                           title='Seleccione el excel',
+                                           filetypes=(("xlsx files","*.xlsx"),("all files","*.*")))
+        greeting.config(text='PASO 2: Archivo cargado, ejecute el script')
+
+    def close():
+        greeting['text']='El programa se cerrará cuando termine'
+        root.quit()
+    
+    # Create the GUI app
+    root = tk.Tk()
+    root.title('OTICFinder - Oficina TIC Alcaldía de Bucaramanga')
+    greeting = tk.Label(root, text="PASO 1: Seleccione el archivo excel y ejecute el script:", foreground='blue')
+    greeting.pack()
+    root.geometry("450x100")
+    button = tk.Button(root, text='Cargar excel', command=open_xlsx).pack()
+    button_close = tk.Button(root, text='Ejecutar script', command=close).pack()
+    root.mainloop()
+    ##################################################################################
     start_time = time.time()
     print('Ejecutando script ...')
     # parameter reading
-    config = configparser.ConfigParser()
-    config.read(sys.argv[1])
-    addresses_path = config['paths']['path_direcciones']
-    path_pol = config['paths']['path_division_politica_AMB']
-    path_poligonos_bucaramanga = config['paths']['path_poligonos_bucaramanga']
-    path_poligonos_giron = config['paths']['path_poligonos_giron']
-    path_poligonos_piedecuesta = config['paths']['path_poligonos_piedecuesta']
-    path_poligonos_floridablanca = config['paths']['path_poligonos_floridablanca']
-    path_poligonos_mun_santander = config['paths']['path_municipios_santander']
+    #configparser for files
+    #config = configparser.ConfigParser()
+    #config.read(sys.argv[1])
+    #addresses_path = config['paths']['path_direcciones']
+    #addresses_path = decode(sys.argv[1], 'unicode_escape')
+    #try:
+    addresses_path = root.filename
+    #path_pol = config['paths']['path_division_politica_AMB']
+    path_pol = os.getcwd()+'/data/docs/planeacion_bucaramanga_barrios_comunas.xlsx/planeacion_bucaramanga_barrios_comunas.xlsx'
+    #path_poligonos_bucaramanga = config['paths']['path_poligonos_bucaramanga']
+    path_poligonos_bucaramanga = os.getcwd()+'/data/shps/bucaramanga_shps.csv/bucaramanga_shps.csv'
+    #path_poligonos_giron = config['paths']['path_poligonos_giron']
+    path_poligonos_giron = ''
+    #path_poligonos_piedecuesta = config['paths']['path_poligonos_piedecuesta']
+    path_poligonos_piedecuesta = ''
+    #path_poligonos_floridablanca = config['paths']['path_poligonos_floridablanca']
+    path_poligonos_floridablanca = os.getcwd()+'/data/shps/floridablanca_shps.csv/floridablanca_shps.csv'
+    #path_poligonos_mun_santander = config['paths']['path_municipios_santander']
+    path_poligonos_mun_santander = os.getcwd()+'/data/shps/santander_shps.csv/santander_shps.csv'
+    #path_lookup_table = config['paths']['path_lookup_table']
+    path_lookup_table = os.getcwd()+'/data/docs/lookup_table.xlsx/lookup_table.xlsx' 
+    # reading the lookup table
+    lookup_table = pd.read_excel(path_lookup_table)
     # reading the names of the neighbourhoods in each city
     division_politica_bucaramanga = pd.read_excel(path_pol, sheet_name='DIVISION_POLITICA_BUCARAMANGA')
     division_politica_giron = pd.read_excel(path_pol, sheet_name='DIVISION_POLITICA_GIRON')
     #division_politica_piedecuesta = pd.read_excel(path_pol, sheet_name='DIVISION_POLITICA_PIEDECUESTA')
     division_politica_general = pd.read_excel(path_pol, sheet_name='CIUDADES')
     division_politica_floridablanca = pd.read_excel(path_pol, sheet_name='DIVISION_POLITICA_FLORIDABLANCA')
-    path_lookup_table = config['paths']['path_lookup_table']
-    # reading the lookup table
-    lookup_table = pd.read_excel(path_lookup_table)
     # reading shapes files
-    data_bucaramanga = pd.read_excel(path_poligonos_bucaramanga)
+    data_bucaramanga = pd.read_csv(path_poligonos_bucaramanga, encoding='latin-1')
     bucaramanga_data_shp = data_bucaramanga[data_bucaramanga.CATEGORIA.isin(['BARRIO', 
-                                                                             'VEREDA',
-                                                                             'A. URBANO', 
-                                                                             'A. RURAL'])]
-    data_floridablanca = pd.read_csv(path_poligonos_floridablanca)
+                                                                            'VEREDA',
+                                                                            'A. URBANO', 
+                                                                            'A. RURAL'])]
+    data_floridablanca = pd.read_csv(path_poligonos_floridablanca, encoding='latin-1')
     # en floridablanca solo se va a considerar barrios
     floridablanca_data_shp = data_floridablanca[data_floridablanca.CATEGORIA.isin(['BARRIO', 
-                                                                                   'VEREDA'])]                                                                              
+                                                                                'VEREDA'])]                                                                              
 
     # concatenate all polygon files
     data_shp = pd.concat([bucaramanga_data_shp, floridablanca_data_shp], ignore_index=True)
     # concatenate all city files to search COMUNA
     todos_div_pol = pd.concat([division_politica_bucaramanga, 
-                               division_politica_floridablanca], ignore_index=True)
+                            division_politica_floridablanca], ignore_index=True)
 
     # reading the address file to process
     df_addresses = pd.read_excel(addresses_path, sheet_name='Hoja1')
@@ -150,6 +186,9 @@ def main():
     df_addresses = pd.merge(df_addresses,todos_div_pol[['COMUNA', 'BARRIO']], left_on='barrio_poly', 
                                                                             right_on='BARRIO',
                                                                             how='left')
+    # AQUI HAY QUE FILTRAR DUPLICADOS CUANDO LOS BARRIOS TIENE EL MISMO NOMBRE
+    # por ahora se dejan los ultimos pero abria que mirar una condicion para seleccionar    
+    # df_addresses.drop_duplicates(subset='', keep='last', inplace=True)
 
     print('Paso 6. Creando estructura final ...')
     df_addresses['NUMERO COMUNA'] = None
@@ -213,13 +252,19 @@ def main():
     duration_hr = ((end_time - start_time)/60)/60
     print('procedimiento finalizado .... Nos vemos mañana')
     print("Esto tardo %.2f horas" % (duration_hr))
-    #except:
-    #    print('Programa cerrado')    
+    print('Cerrar programa. Si no se cerrará automáticamente en 15 min.') 
+    time.sleep(900)
+       
 
 if __name__ == '__main__':
     # To parallelize pandas operations
+    multiprocessing.freeze_support()
+    import os
     from distributed import Client
     import modin.pandas as pd
-    client = Client()
-    # execute the principal function
+    #os.environ["MODIN_CPUS"] = "2"
+    client = Client(processes=False)
+    # execute the main function
     main()
+    
+    
